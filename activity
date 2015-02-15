@@ -1,0 +1,134 @@
+package com.test.furyup;
+
+import android.os.AsyncTask;
+import android.support.v7.app.ActionBarActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+
+public class MainActivity extends ActionBarActivity {
+
+    public static String LOG_TAG = "my_log";
+    public String JSONInput = "";
+
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        final TextView tvOut = (TextView) findViewById(R.id.tv_out);
+
+        tvOut.setText("Начало");
+
+        final Button button = (Button) findViewById(R.id.button);
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                // Perform action on click
+               // JSONInput.
+
+
+                tvOut.setText("Запускаем Кнопку");
+
+                JSONInput = "{" +
+                        "  'status':1" +
+                        "  ,'data':['name':'Test1'" +
+                        ", 'device':'AAA1']}";
+
+                new ParseTask().execute();
+
+            }
+        });
+    }
+
+    private class ParseTask extends AsyncTask<Void, Void, String>  {
+
+        HttpURLConnection urlConnection = null;
+        BufferedReader reader = null;
+        String resultJson = "";
+        TextView tvOut = (TextView) findViewById(R.id.tv_out);
+        @Override
+        protected String doInBackground(Void... params) {
+            // получаем данные с внешнего ресурса
+            try {
+
+                String urlString = "http://10.0.2.2/furyup/testmysql.php?value=";
+                // Добавляем параметр в URLу
+                // Чистим от пробелов и всякой лажи
+                urlString += JSONInput.trim().replace(" ", "%20").replace("'", "%27");
+
+                Log.i("NewURL", urlString);
+                URL url = new URL(urlString);
+
+                urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("GET");
+                urlConnection.connect();
+
+                InputStream inputStream = urlConnection.getInputStream();
+                StringBuffer buffer = new StringBuffer();
+
+                reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    buffer.append(line);
+                }
+
+                resultJson = buffer.toString();
+                // выводим целиком полученную json-строку
+                Log.i(LOG_TAG, resultJson);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return resultJson;
+        }
+
+        @Override
+        protected void onPostExecute(String strJson) {
+            super.onPostExecute(strJson);
+
+
+            JSONObject dataJsonObj = null;
+            String fstName = "";
+
+            try {
+                dataJsonObj = new JSONObject(strJson);
+                JSONArray data = dataJsonObj.getJSONArray("data");
+
+                JSONObject fstObject = data.getJSONObject(0);
+                fstName = fstObject.getString("name");
+                Log.d(LOG_TAG, "имя: " + fstName);
+
+                for (int i = 0; i < data.length(); i++) {
+                    JSONObject dataList = data.getJSONObject(i);
+
+                    String device = dataList.getString("device");
+                    String name = dataList.getString("name");
+
+                    Log.d(LOG_TAG, "device: " + device);
+                    Log.d(LOG_TAG, "name: " + name);
+
+                    tvOut.setText(name);
+
+                }
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}

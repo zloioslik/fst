@@ -1,0 +1,107 @@
+--
+--  Базулька
+-- Дата скрипта: 15.02.2015 17:50:33
+-- Версия сервера: 5.6.22-log
+-- Версия клиента: 4.1
+--
+
+
+CREATE DATABASE IF NOT EXISTS furyup
+CHARACTER SET cp1251
+COLLATE cp1251_general_cs;
+
+USE furyup;
+
+CREATE TABLE IF NOT EXISTS t_log (
+  id bigint(20) NOT NULL AUTO_INCREMENT,
+  object_id int(11) NOT NULL,
+  text text NOT NULL,
+  EventType varchar(1) NOT NULL,
+  datetime timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  INDEX IDX_t_log_EventType (EventType),
+  INDEX UK_t_log_object_id (object_id)
+)
+ENGINE = INNODB
+AUTO_INCREMENT = 107
+AVG_ROW_LENGTH = 4096
+CHARACTER SET cp1251
+COLLATE cp1251_general_cs;
+
+CREATE TABLE IF NOT EXISTS t_names (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  Device varchar(100) binary CHARACTER SET cp1251 COLLATE cp1251_bin NOT NULL,
+  Name varchar(50) NOT NULL,
+  Pass varchar(255) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE INDEX IX_device (Device),
+  UNIQUE INDEX IX_Name (Name)
+)
+ENGINE = INNODB
+AUTO_INCREMENT = 2
+AVG_ROW_LENGTH = 16384
+CHARACTER SET cp1251
+COLLATE cp1251_general_cs;
+
+CREATE TABLE IF NOT EXISTS t_objecttype (
+  id int(1) NOT NULL AUTO_INCREMENT,
+  Code varchar(50) NOT NULL,
+  Name varchar(255) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE INDEX ix_Code (Code)
+)
+ENGINE = INNODB
+AUTO_INCREMENT = 1
+CHARACTER SET cp1251
+COLLATE cp1251_general_cs;
+
+CREATE TABLE IF NOT EXISTS t_object (
+  id int(11) NOT NULL AUTO_INCREMENT,
+  Type int(11) NOT NULL,
+  Name varchar(50) NOT NULL,
+  PRIMARY KEY (id),
+  CONSTRAINT FK_t_object_t_objecttype_id FOREIGN KEY (Type)
+  REFERENCES t_objecttype (id) ON DELETE RESTRICT ON UPDATE RESTRICT
+)
+ENGINE = INNODB
+AUTO_INCREMENT = 1
+CHARACTER SET cp1251
+COLLATE cp1251_general_cs;
+
+DELIMITER $$
+
+CREATE DEFINER = 'root'@'localhost'
+PROCEDURE furyup_json_exchange (IN JSONIn text, OUT JSONOut text)
+BEGIN
+  CALL furyup.sp_AddLog(1, JSONIn, 1, 'S');
+  --  Тестирование
+
+
+
+  SET
+  JSONOut = CONCAT("{'data':", (SELECT
+      CONCAT("[",
+      GROUP_CONCAT(
+      CONCAT("{'device':'", device, "'"),
+      CONCAT(",'name':'", tn.name), "'}")
+
+      , "]}") AS json
+    FROM t_names tn
+    WHERE Device = 'AAA1'));
+
+  CALL furyup.sp_AddLog(1, JSONOut, 1, 'F');
+
+END
+$$
+
+CREATE DEFINER = 'root'@'localhost'
+PROCEDURE sp_AddLog (IN ObjectType int, IN JSONIn text, IN device int, IN EventType varchar(1))
+BEGIN
+
+  INSERT INTO furyup.t_log (object_id, text, EventType)
+    VALUES (ObjectType, JSONIn, EventType);
+
+END
+$$
+
+DELIMITER ;
